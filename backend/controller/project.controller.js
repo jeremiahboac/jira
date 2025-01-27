@@ -61,7 +61,7 @@ export const createProject = async (req, res) => {
 
   console.log('Project created successfully')
 
-  res.status(200).json({ success: true, message: 'Create project successfully', data: { project } })
+  res.status(201).json({ success: true, message: 'Create project successfully', data: { project } })
 }
 
 export const changeProjectStatus = async (req, res) => {
@@ -86,23 +86,30 @@ export const changeProjectStatus = async (req, res) => {
 export const addMember = async (req, res) => {
   const userLevel = req.user.role
 
-  const { projectId, username } = req.params
+  const { projectId, userId } = req.params
 
   if (userLevel !== 'moderator' && userLevel !== 'admin') throw new AppError(400, 'You don\'t have permission to add a member')
 
-  if (!username) throw new AppError(400, 'Username is required')
+  if (!userId) throw new AppError(400, 'Username is required')
 
   if (!projectId) throw new AppError(400, 'Project id is required')
 
-  const user = await User.findOne({ username })
+  const user = await User.findOne({ _id: userId })
 
   if (!user) throw new AppError(404, 'User not found')
 
-  const project = await Project.findByIdAndUpdate(projectId, { $addToSet: { members: user._id } }, { new: true }).populate({
-    path: 'owner',
-    match: { role: { $ne: 'admin' } },
-    select: '_id'
-  })
+  const project = await Project.findByIdAndUpdate(projectId, { $addToSet: { members: user._id } }, { new: true }).populate([
+    {
+      path: 'owner',
+      match: { role: { $ne: 'admin' } },
+      select: '_id'
+    },
+    {
+      path: 'members',
+      match: { role: { $ne: 'admin' } },
+      select: '-password -projects'
+    }
+  ])
 
   user.projects.push(project._id)
 
@@ -116,25 +123,29 @@ export const addMember = async (req, res) => {
 export const removeMember = async (req, res) => {
   const userLevel = req.user.role
 
-  const { projectId, username } = req.params
+  const { projectId, userId } = req.params
 
   if (userLevel !== 'moderator' && userLevel !== 'admin') throw new AppError(400, 'You don\'t have permission to remove a member')
 
-  if (!username) throw new AppError(400, 'Username is required')
+  if (!userId) throw new AppError(400, 'Username is required')
 
   if (!projectId) throw new AppError(400, 'Project id is required')
 
-  const user = await User.findOne({
-    $or: [{ username }, { _id: username }]
-  })
+  const user = await User.findOne({ _id: userId })
 
   if (!user) throw new AppError(404, 'User not found')
 
   if (!user.projects.includes(projectId)) throw new AppError(400, 'User is not a member of this project')
 
-  const project = await Project.findByIdAndUpdate(projectId, { $pull: { members: user._id } }, { new: true })
+  const project = await Project.findByIdAndUpdate(projectId, { $pull: { members: user._id } }, { new: true }).populate([
+    {
+      path: 'owner',
+      match: { role: { $ne: 'admin' } },
+      select: '_id'
+    }
+  ])
 
-  user.projects = user.projects.filter((id) => id.toString() !== projectId)
+  user.projects = user.projects.filter((project) => project._id.toString() !== projectId)
 
   await user.save()
 
@@ -180,7 +191,7 @@ export const createTicket = async (req, res) => {
 
   await Project.findByIdAndUpdate(projectId, { $addToSet: { tickets: ticket._id } }, { new: true })
 
-  res.status(200).json({ success: true, message: 'Create ticket successfully', data: { ticket } })
+  res.status(201).json({ success: true, message: 'Create ticket successfully', data: { ticket } })
 }
 
 export const getTicket = async (req, res) => {
@@ -316,7 +327,7 @@ export const createComment = async (req, res) => {
 
   await tickets[0].save()
 
-  res.status(200).json({ success: true, message: 'Create comment successfully', data: { tickets } })
+  res.status(201).json({ success: true, message: 'Create comment successfully', data: { tickets } })
 }
 
 export const updateComment = async (req, res) => {
