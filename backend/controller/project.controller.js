@@ -46,9 +46,9 @@ export const createProject = async (req, res) => {
 
   const admins = await User.find({ role: 'admin' }).select('_id')
 
-  const project = await Project.create({ name, description, owner: [...admins, req.user._id] })
+  const newProject = await Project.create({ name, description, owner: [...admins, req.user._id] })
 
-  const populateProject = await project.populate({
+  const project = await newProject.populate({
     path: 'owner',
     match: { role: { $ne: 'admin' } },
     select: '-password -projects'
@@ -56,12 +56,12 @@ export const createProject = async (req, res) => {
 
   await User.updateMany(
     { $or: [{ role: 'admin' }, { _id: req.user._id }] },
-    { $push: { projects: project._id } }
+    { $push: { projects: newProject._id } }
   )
 
   console.log('Project created successfully')
 
-  res.status(200).json({ success: true, message: 'Create project successfully', data: { populateProject } })
+  res.status(200).json({ success: true, message: 'Create project successfully', data: { project } })
 }
 
 export const changeProjectStatus = async (req, res) => {
