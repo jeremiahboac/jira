@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import consoleStamp from 'console-stamp'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import { v2 as cloudinary } from 'cloudinary'
 
 import { connectDB } from './lib/mongodb.js'
@@ -25,6 +26,10 @@ const port = process.env.PORT
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/user', userRoutes)
